@@ -2894,12 +2894,67 @@ export class LosslessAPI {
             }
         }
 
+        // Final fallback: JioSaavn
+        let jiosaavnResult = await this.getJioSaavnStreamUrl(track);
+        if (jiosaavnResult?.url) {
+            const result = {
+                url: jiosaavnResult.url,
+                rgInfo: {
+                    trackReplayGain: 0,
+                    trackPeakAmplitude: 1,
+                    albumReplayGain: 0,
+                    albumPeakAmplitude: 1,
+                },
+                provider: 'jiosaavn',
+            };
+            this.streamCache.set(cacheKey, result);
+            return result;
+        }
+
         notifyAudioSourceMissing();
         throw new Error(
             track?.isrc
-                ? 'Could not resolve stream URL from Amazon Music, Qobuz, or Deezer'
-                : 'Could not resolve stream URL: Amazon Music failed and track has no ISRC for Qobuz/Deezer lookup'
+                ? 'Could not resolve stream URL from Amazon Music, Qobuz, Deezer, or JioSaavn'
+                : 'Could not resolve stream URL: Amazon Music failed and track has no ISRC for Qobuz/Deezer lookup, and JioSaavn fallback failed'
         );
+    }
+
+    async getJioSaavnStreamUrl(track) {
+        try {
+            const { jiosaavnSettings } = await import('./storage.js');
+            if (!jiosaavnSettings || !jiosaavnSettings.isEnabled()) return null;
+
+            const query = `${track.title} ${track.artist?.name || track.artists?.[0]?.name || ''}`.trim();
+            const baseUrl = jiosaavnSettings.getApiBaseUrl().replace(/\/+$/, '');
+            const searchUrl = `${baseUrl}/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=5`;
+            
+            const response = await fetch(searchUrl);
+            if (!response.ok) return null;
+            
+            const data = await response.json();
+            if (data?.success && data?.data?.results?.length > 0) {
+                const song = data.data.results[0];
+                if (song.downloadUrl && song.downloadUrl.length > 0) {
+                    const qualityOrder = ['320kbps', '160kbps', '96kbps', '48kbps', '12kbps'];
+                    let bestUrl = null;
+                    for (let q of qualityOrder) {
+                        const urlObj = song.downloadUrl.find(u => u.quality === q);
+                        if (urlObj) {
+                            bestUrl = urlObj.url;
+                            break;
+                        }
+                    }
+                    if (!bestUrl) bestUrl = song.downloadUrl[song.downloadUrl.length - 1].url;
+                    
+                    if (bestUrl) {
+                        return { url: bestUrl };
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('JioSaavn fallback failed:', e);
+        }
+        return null;
     }
 
     async getVideoStreamUrl(id) {

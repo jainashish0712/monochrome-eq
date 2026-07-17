@@ -3103,6 +3103,36 @@ export const musicProviderSettings = {
     },
 };
 
+export const jiosaavnSettings = {
+    ENABLED_KEY: 'jiosaavn-enabled',
+    API_BASE_URL_KEY: 'jiosaavn-api-base-url',
+    DEFAULT_API_BASE_URL: 'https://saavn.sumit.co',
+
+    isEnabled() {
+        try {
+            return localStorage.getItem(this.ENABLED_KEY) !== 'false';
+        } catch {
+            return true;
+        }
+    },
+
+    setEnabled(enabled) {
+        localStorage.setItem(this.ENABLED_KEY, enabled ? 'true' : 'false');
+    },
+
+    getApiBaseUrl() {
+        try {
+            return localStorage.getItem(this.API_BASE_URL_KEY) || this.DEFAULT_API_BASE_URL;
+        } catch {
+            return this.DEFAULT_API_BASE_URL;
+        }
+    },
+
+    setApiBaseUrl(url) {
+        localStorage.setItem(this.API_BASE_URL_KEY, url || this.DEFAULT_API_BASE_URL);
+    }
+};
+
 export const amazonMusicSettings = {
     ENABLED_KEY: 'amazon-music-enabled',
     API_BASE_URL_KEY: 'amazon-music-api-base-url',

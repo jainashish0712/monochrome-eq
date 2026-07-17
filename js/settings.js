@@ -33,6 +33,7 @@ import {
     contentBlockingSettings,
     musicProviderSettings,
     amazonMusicSettings,
+    jiosaavnSettings,
     deezerFallbackSettings,
     gaplessPlaybackSettings,
     analyticsSettings,
@@ -829,22 +830,30 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         renderCustomThemeEditor();
     });
 
-    // Music Provider setting
-    const musicProviderSetting = document.getElementById('music-provider-setting');
-    if (musicProviderSetting) {
-        musicProviderSetting.value = musicProviderSettings.getProvider();
-        musicProviderSetting.addEventListener('change', (e) => {
-            musicProviderSettings.setProvider(e.target.value);
-            // Reload page to apply changes
-            window.location.reload();
-        });
-    }
+    // Music Provider setting removed in favor of toggle
 
     const amazonMusicToggle = document.getElementById('amazon-music-toggle');
     if (amazonMusicToggle) {
         amazonMusicToggle.checked = amazonMusicSettings.isEnabled();
         amazonMusicToggle.addEventListener('change', (e) => {
             amazonMusicSettings.setEnabled(e.target.checked);
+        });
+    }
+
+    const jiosaavnToggle = document.getElementById('jiosaavn-toggle');
+    if (jiosaavnToggle) {
+        jiosaavnToggle.checked = musicProviderSettings.getProvider() === 'jiosaavn';
+        jiosaavnToggle.addEventListener('change', (e) => {
+            musicProviderSettings.setProvider(e.target.checked ? 'jiosaavn' : 'amazon');
+            window.location.reload();
+        });
+    }
+
+    const jiosaavnApiBaseUrlInput = document.getElementById('jiosaavn-api-base-url');
+    if (jiosaavnApiBaseUrlInput) {
+        jiosaavnApiBaseUrlInput.value = jiosaavnSettings.getApiBaseUrl();
+        jiosaavnApiBaseUrlInput.addEventListener('change', (e) => {
+            jiosaavnSettings.setApiBaseUrl(e.target.value);
         });
     }
 
