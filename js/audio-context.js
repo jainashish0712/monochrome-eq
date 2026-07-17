@@ -3,8 +3,9 @@
 // Supports 3-32 parametric EQ bands
 
 import { isIos } from './platform-detection.js';
-import { equalizerSettings, monoAudioSettings, binauralDspSettings } from './storage.js';
+import { equalizerSettings, monoAudioSettings, binauralDspSettings, reverbSettings } from './storage.js';
 import { BinauralDSP } from './binaural-dsp.js';
+import { ReverbEffect } from './reverb.js';
 
 // Generate frequency array for given number of bands using logarithmic spacing
 function generateFrequencies(bandCount, minFreq = 20, maxFreq = 20000) {
@@ -143,6 +144,10 @@ class AudioContextManager {
         // Binaural DSP state
         this.binauralDsp = null;
         this.isBinauralEnabled = binauralDspSettings.isEnabled();
+
+        // Reverb state
+        this.reverbEffect = null;
+        this.isReverbEnabled = reverbSettings.isEnabled();
 
         // Callbacks for audio graph changes (for visualizers like Butterchurn)
         this._graphChangeCallbacks = [];
@@ -505,6 +510,9 @@ class AudioContextManager {
 
                 this.binauralDsp = new BinauralDSP(this.audioContext);
                 void this._loadBinauralSettings();
+
+                this.reverbEffect = new ReverbEffect(this.audioContext);
+                this._loadReverbSettings();
             }
 
             this.analyser = this.audioContext.createAnalyser();
@@ -630,6 +638,11 @@ class AudioContextManager {
                 safeDisconnect(input);
                 safeDisconnect(output);
             }
+            if (this.reverbEffect) {
+                const { input, output } = this.reverbEffect.getNodes();
+                safeDisconnect(input);
+                safeDisconnect(output);
+            }
             safeDisconnect(this.preampNode);
             this.filters.forEach(safeDisconnect);
             safeDisconnect(this.outputNode);
@@ -665,6 +678,13 @@ class AudioContextManager {
                 this.monoGainNode.connect(this.monoMergerNode, 0, 0);
                 this.monoGainNode.connect(this.monoMergerNode, 0, 1);
                 lastNode = this.monoMergerNode;
+            }
+
+            if (this.isReverbEnabled && this.reverbEffect) {
+                const { input, output } = this.reverbEffect.getNodes();
+                lastNode.connect(input);
+                this.reverbEffect.reconnect();
+                lastNode = output;
             }
 
             if (this.isBinauralEnabled && this.binauralDsp) {
@@ -977,6 +997,49 @@ class AudioContextManager {
         }
     }
 
+    // Reverb controls
+    toggleReverb(enabled) {
+        this.isReverbEnabled = enabled;
+        reverbSettings.setEnabled(enabled);
+        
+        if (this.isInitialized) {
+            this._connectGraph();
+        }
+        
+        window.dispatchEvent(new CustomEvent('reverb-state-changed', { detail: { enabled } }));
+        return this.isReverbEnabled;
+    }
+
+    setReverbMix(mix) {
+        reverbSettings.setMix(mix);
+        if (this.reverbEffect) {
+            this.reverbEffect.setMix(mix);
+        }
+    }
+
+    setReverbTime(time) {
+        reverbSettings.setTime(time);
+        if (this.reverbEffect) {
+            this.reverbEffect.setTime(time);
+        }
+    }
+
+    setReverbDecay(decay) {
+        reverbSettings.setDecay(decay);
+        if (this.reverbEffect) {
+            this.reverbEffect.setDecay(decay);
+        }
+    }
+
+    _loadReverbSettings() {
+        if (!this.reverbEffect) return;
+        this.isReverbEnabled = reverbSettings.isEnabled();
+        this.reverbEffect.setMix(reverbSettings.getMix());
+        this.reverbEffect.setTime(reverbSettings.getTime());
+        this.reverbEffect.setDecay(reverbSettings.getDecay());
+        this.reverbEffect.setReverse(reverbSettings.getReverse());
+    }
+
     /**
      * Get current gain range
      */
@@ -1137,6 +1200,7 @@ class AudioContextManager {
         this.isMonoAudioEnabled = monoAudioSettings.isEnabled();
         this.preamp = equalizerSettings.getPreamp();
         this.isBinauralEnabled = binauralDspSettings.isEnabled();
+        this.isReverbEnabled = reverbSettings.isEnabled();
     }
 
     /**

@@ -4423,6 +4423,51 @@
 
                                 <div class="setting-item">
                                     <div class="info">
+                                        <span class="label">Reverb DSP</span>
+                                        <span class="description">Algorithmic reverberation effect</span>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="reverb-dsp-toggle" />
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="binaural-dsp-container" id="reverb-dsp-container" style="display: none">
+                                    <div class="binaural-sub-setting">
+                                        <div class="info">
+                                            <span class="label">Mix</span>
+                                            <span class="binaural-width-value" id="reverb-mix-value">0.5</span>
+                                        </div>
+                                        <input type="range" id="reverb-mix-slider" min="0" max="1" step="0.01" value="0.5" class="binaural-slider" />
+                                    </div>
+                                    <div class="binaural-sub-setting">
+                                        <div class="info">
+                                            <span class="label">Time</span>
+                                            <span class="binaural-width-value" id="reverb-time-value">0.01</span>
+                                        </div>
+                                        <input type="range" id="reverb-time-slider" min="0.0001" max="10" step="0.1" value="0.01" class="binaural-slider" />
+                                    </div>
+                                    <div class="binaural-sub-setting">
+                                        <div class="info">
+                                            <span class="label">Decay</span>
+                                            <span class="binaural-width-value" id="reverb-decay-value">0.01</span>
+                                        </div>
+                                        <input type="range" id="reverb-decay-slider" min="0.0001" max="10" step="0.1" value="0.01" class="binaural-slider" />
+                                    </div>
+                                    <div class="binaural-sub-setting">
+                                        <div class="info">
+                                            <span class="label">Reverse</span>
+                                            <span class="description">Reverse impulse response</span>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="reverb-reverse-toggle" />
+                                            <span class="slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="setting-item">
+                                    <div class="info">
                                         <span class="label">EQ Studio</span>
                                         <span class="description"
                                             >Multi-mode equalizer with AutoEQ, M/S processing &amp; room

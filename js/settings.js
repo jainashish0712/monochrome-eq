@@ -39,6 +39,7 @@ import {
     modalSettings,
     preferDolbyAtmosSettings,
     binauralDspSettings,
+    reverbSettings,
     fullscreenCoverNoRoundSettings,
     fullscreenCoverVanillaTiltSettings,
     fullscreenCoverTiltDistanceSettings,
@@ -1242,6 +1243,68 @@ export async function initializeSettings(scrobbler, player, api, ui) {
             const enabled = e.target.checked;
             monoAudioSettings.setEnabled(enabled);
             audioContextManager.toggleMonoAudio(enabled);
+        });
+    }
+
+    // ========================================
+    // Reverb DSP
+    // ========================================
+    const reverbToggle = document.getElementById('reverb-dsp-toggle');
+    const reverbContainer = document.getElementById('reverb-dsp-container');
+    const reverbMixSlider = document.getElementById('reverb-mix-slider');
+    const reverbMixValue = document.getElementById('reverb-mix-value');
+    const reverbTimeSlider = document.getElementById('reverb-time-slider');
+    const reverbTimeValue = document.getElementById('reverb-time-value');
+    const reverbDecaySlider = document.getElementById('reverb-decay-slider');
+    const reverbDecayValue = document.getElementById('reverb-decay-value');
+    const reverbReverseToggle = document.getElementById('reverb-reverse-toggle');
+
+    if (reverbToggle && reverbContainer) {
+        const isEnabled = reverbSettings.isEnabled();
+        reverbToggle.checked = isEnabled;
+        reverbContainer.style.display = isEnabled ? 'block' : 'none';
+
+        reverbToggle.addEventListener('change', (e) => {
+            const enabled = e.target.checked;
+            reverbContainer.style.display = enabled ? 'block' : 'none';
+            audioContextManager.toggleReverb(enabled);
+        });
+    }
+
+    if (reverbMixSlider) {
+        reverbMixSlider.value = reverbSettings.getMix();
+        if (reverbMixValue) reverbMixValue.textContent = reverbSettings.getMix();
+        reverbMixSlider.addEventListener('input', (e) => {
+            if (reverbMixValue) reverbMixValue.textContent = e.target.value;
+            audioContextManager.setReverbMix(parseFloat(e.target.value));
+        });
+    }
+
+    if (reverbTimeSlider) {
+        reverbTimeSlider.value = reverbSettings.getTime();
+        if (reverbTimeValue) reverbTimeValue.textContent = reverbSettings.getTime();
+        reverbTimeSlider.addEventListener('input', (e) => {
+            if (reverbTimeValue) reverbTimeValue.textContent = e.target.value;
+            audioContextManager.setReverbTime(parseFloat(e.target.value));
+        });
+    }
+
+    if (reverbDecaySlider) {
+        reverbDecaySlider.value = reverbSettings.getDecay();
+        if (reverbDecayValue) reverbDecayValue.textContent = reverbSettings.getDecay();
+        reverbDecaySlider.addEventListener('input', (e) => {
+            if (reverbDecayValue) reverbDecayValue.textContent = e.target.value;
+            audioContextManager.setReverbDecay(parseFloat(e.target.value));
+        });
+    }
+    
+    if (reverbReverseToggle) {
+        reverbReverseToggle.checked = reverbSettings.getReverse();
+        reverbReverseToggle.addEventListener('change', (e) => {
+            reverbSettings.setReverse(e.target.checked);
+            if (audioContextManager.reverbEffect) {
+                audioContextManager.reverbEffect.setReverse(e.target.checked);
+            }
         });
     }
 

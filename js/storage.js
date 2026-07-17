@@ -1910,6 +1910,73 @@ export const monoAudioSettings = {
     },
 };
 
+export const reverbSettings = {
+    STORAGE_KEY: 'reverb-settings',
+
+    _getAll() {
+        try {
+            return JSON.parse(localStorage.getItem(this.STORAGE_KEY)) || {};
+        } catch {
+            return {};
+        }
+    },
+
+    _setAll(obj) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(obj));
+        } catch {}
+    },
+
+    isEnabled() {
+        return this._getAll().enabled === true;
+    },
+    setEnabled(enabled) {
+        const all = this._getAll();
+        all.enabled = !!enabled;
+        this._setAll(all);
+    },
+
+    getMix() {
+        const val = this._getAll().mix;
+        return val === undefined ? 0.5 : val;
+    },
+    setMix(val) {
+        const all = this._getAll();
+        all.mix = val;
+        this._setAll(all);
+    },
+
+    getTime() {
+        const val = this._getAll().time;
+        return val === undefined ? 0.01 : val;
+    },
+    setTime(val) {
+        const all = this._getAll();
+        all.time = val;
+        this._setAll(all);
+    },
+
+    getDecay() {
+        const val = this._getAll().decay;
+        return val === undefined ? 0.01 : val;
+    },
+    setDecay(val) {
+        const all = this._getAll();
+        all.decay = val;
+        this._setAll(all);
+    },
+
+    getReverse() {
+        const val = this._getAll().reverse;
+        return val === undefined ? false : val;
+    },
+    setReverse(val) {
+        const all = this._getAll();
+        all.reverse = val;
+        this._setAll(all);
+    }
+};
+
 export const binauralDspSettings = {
     STORAGE_KEY: 'binaural-dsp',
 
