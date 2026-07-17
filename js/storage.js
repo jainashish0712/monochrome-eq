@@ -2065,6 +2065,29 @@ export const audioEffectsSettings = {
         return 1.0;
     },
 
+    PITCH_KEY: 'audio-effects-pitch',
+
+    // Playback pitch changer (-1.4 to 1.4, default 0.0)
+    getPitch() {
+        try {
+            const val = parseFloat(localStorage.getItem(this.PITCH_KEY));
+            return isNaN(val) ? 0.0 : val;
+        } catch {
+            return 0.0;
+        }
+    },
+
+    setPitch(pitch) {
+        const parsed = parseFloat(pitch);
+        const validPitch = Math.max(-1.4, Math.min(1.4, isNaN(parsed) ? 0.0 : parsed));
+        localStorage.setItem(this.PITCH_KEY, validPitch.toString());
+    },
+
+    resetPitch() {
+        this.setPitch(0.0);
+        return 0.0;
+    },
+
     // Preserve pitch when changing speed (default true)
     isPreservePitchEnabled() {
         try {

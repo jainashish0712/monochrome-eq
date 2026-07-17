@@ -1416,6 +1416,62 @@ export async function initializeSettings(scrobbler, player, api, ui) {
     }
 
     // ========================================
+    // Audio Effects (Pitch Changer)
+    // ========================================
+    const pitchChangerSlider = document.getElementById('pitch-changer-slider');
+    const pitchChangerInput = document.getElementById('pitch-changer-input');
+    const pitchChangerReset = document.getElementById('pitch-changer-reset');
+
+    if (pitchChangerSlider && pitchChangerInput) {
+        // Helper function to update both controls
+        const updatePitchChangerControls = (pitch) => {
+            const parsedPitch = parseFloat(pitch);
+            const validPitch = Math.max(-1.4, Math.min(1.4, isNaN(parsedPitch) ? 0.0 : parsedPitch));
+            pitchChangerInput.value = validPitch;
+            // Only update slider if value is within slider range
+            if (validPitch >= -1.4 && validPitch <= 1.4) {
+                pitchChangerSlider.value = validPitch;
+            }
+            return validPitch;
+        };
+
+        // Initialize with current value
+        const currentPitch = audioEffectsSettings.getPitch();
+        updatePitchChangerControls(currentPitch);
+
+        pitchChangerSlider.addEventListener('input', (e) => {
+            const pitch = parseFloat(e.target.value);
+            pitchChangerInput.value = pitch;
+            audioEffectsSettings.setPitch(pitch);
+            if (audioContextManager.setPitch) audioContextManager.setPitch(pitch);
+        });
+
+        pitchChangerInput.addEventListener('input', (e) => {
+            const pitch = parseFloat(e.target.value);
+            if (!isNaN(pitch) && pitch >= -1.4 && pitch <= 1.4) {
+                pitchChangerSlider.value = pitch;
+                audioEffectsSettings.setPitch(pitch);
+                if (audioContextManager.setPitch) audioContextManager.setPitch(pitch);
+            }
+        });
+
+        pitchChangerInput.addEventListener('change', (e) => {
+            const pitch = parseFloat(e.target.value);
+            const validPitch = updatePitchChangerControls(pitch);
+            audioEffectsSettings.setPitch(validPitch);
+            if (audioContextManager.setPitch) audioContextManager.setPitch(validPitch);
+        });
+
+        if (pitchChangerReset) {
+            pitchChangerReset.addEventListener('click', () => {
+                const defaultPitch = audioEffectsSettings.resetPitch();
+                updatePitchChangerControls(defaultPitch);
+                if (audioContextManager.setPitch) audioContextManager.setPitch(defaultPitch);
+            });
+        }
+    }
+
+    // ========================================
     // Preserve Pitch Toggle
     // ========================================
     const preservePitchToggle = document.getElementById('preserve-pitch-toggle');

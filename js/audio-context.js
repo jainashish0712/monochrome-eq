@@ -3,8 +3,9 @@
 // Supports 3-32 parametric EQ bands
 
 import { isIos } from './platform-detection.js';
-import { equalizerSettings, monoAudioSettings, binauralDspSettings } from './storage.js';
+import { equalizerSettings, monoAudioSettings, binauralDspSettings, audioEffectsSettings } from './storage.js';
 import { BinauralDSP } from './binaural-dsp.js';
+import { SoundTouch } from 'soundtouchjs';
 
 // Generate frequency array for given number of bands using logarithmic spacing
 function generateFrequencies(bandCount, minFreq = 20, maxFreq = 20000) {
@@ -158,6 +159,10 @@ class AudioContextManager {
         this.geqGains = equalizerSettings.getGraphicEqGains(this.geqBandCount);
         this.geqPreamp = equalizerSettings.getGraphicEqPreamp();
 
+        this.pitchNode = null;
+        this.soundTouch = null;
+        this.currentPitch = audioEffectsSettings.getPitch();
+
         // Load saved settings
         this._loadSettings();
     }
@@ -200,6 +205,25 @@ class AudioContextManager {
                 detail: { bandCount: newCount, frequencies: this.frequencies },
             })
         );
+    }
+
+    /**
+     * Update pitch logic
+     */
+    setPitch(pitch) {
+        const p = parseFloat(pitch);
+        if (isNaN(p)) return;
+        if (this.currentPitch === 0.0 && p !== 0.0 && this.soundTouch) {
+            this.soundTouch.clear();
+        }
+        
+        this.currentPitch = p;
+        if (this.soundTouch) {
+            this.soundTouch.pitchOctaves = p;
+        }
+        if (this.isInitialized) {
+            this._connectGraph();
+        }
     }
 
     /**
@@ -524,6 +548,43 @@ class AudioContextManager {
             this.volumeNode = this.audioContext.createGain();
             this.volumeNode.gain.value = this.currentVolume;
 
+            this.soundTouch = new SoundTouch();
+            this.soundTouch.pitchOctaves = this.currentPitch;
+            this.pitchNode = this.audioContext.createScriptProcessor(4096, 2, 2);
+            this.pitchNode.onaudioprocess = (e) => {
+                const inputL = e.inputBuffer.getChannelData(0);
+                const inputR = e.inputBuffer.numberOfChannels > 1 ? e.inputBuffer.getChannelData(1) : inputL;
+                const numFrames = inputL.length;
+                const samples = new Float32Array(numFrames * 2);
+                for (let i = 0; i < numFrames; i++) {
+                    samples[i * 2] = inputL[i];
+                    samples[i * 2 + 1] = inputR[i];
+                }
+                if (this.soundTouch) {
+                    this.soundTouch.inputBuffer.putSamples(samples, 0, numFrames);
+                    this.soundTouch.process();
+                }
+                const outputL = e.outputBuffer.getChannelData(0);
+                const outputR = e.outputBuffer.getChannelData(1);
+                if (this.soundTouch) {
+                    if (this.soundTouch.outputBuffer.frameCount >= numFrames) {
+                        const outSamples = new Float32Array(numFrames * 2);
+                        this.soundTouch.outputBuffer.extract(outSamples, 0, numFrames);
+                        for (let i = 0; i < numFrames; i++) {
+                            outputL[i] = outSamples[i * 2];
+                            outputR[i] = outSamples[i * 2 + 1];
+                        }
+                        this.soundTouch.outputBuffer.receive(numFrames);
+                    } else {
+                        // Not enough frames yet, output silence to build up latency buffer
+                        for (let i = 0; i < numFrames; i++) {
+                            outputL[i] = 0;
+                            outputR[i] = 0;
+                        }
+                    }
+                }
+            };
+
             this.monoMergerNode = this.audioContext.createChannelMerger(2);
 
             this._connectGraph();
@@ -657,6 +718,7 @@ class AudioContextManager {
             safeDisconnect(this.geqOutputNode);
             safeDisconnect(this.analyser);
             safeDisconnect(this.volumeNode);
+            safeDisconnect(this.pitchNode);
 
             let lastNode = this.source;
 
@@ -665,6 +727,11 @@ class AudioContextManager {
                 this.monoGainNode.connect(this.monoMergerNode, 0, 0);
                 this.monoGainNode.connect(this.monoMergerNode, 0, 1);
                 lastNode = this.monoMergerNode;
+            }
+
+            if (this.currentPitch !== 0.0 && this.pitchNode) {
+                lastNode.connect(this.pitchNode);
+                lastNode = this.pitchNode;
             }
 
             if (this.isBinauralEnabled && this.binauralDsp) {
