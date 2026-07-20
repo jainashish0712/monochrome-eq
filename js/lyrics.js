@@ -1032,6 +1032,7 @@ function applyFullscreenLyricsShadowTweaks(amLyrics, container) {
             .lyrics-container {
                 scrollbar-width: none !important;
                 -ms-overflow-style: none !important;
+                padding: 0px 10px !important;
             }
 
             .lyrics-container::-webkit-scrollbar {

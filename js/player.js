@@ -159,18 +159,29 @@ export class Player {
             const waitForImagesLoading = () => {
                 const images = Array.from(document.images).filter((img) => !img.complete);
                 if (images.length === 0) return Promise.resolve();
-                return Promise.all(
-                    images.map(
-                        (img) =>
-                            new Promise((res) => {
-                                img.onload = img.onerror = res;
-                            })
-                    )
-                );
+                return Promise.race([
+                    Promise.all(
+                        images.map(
+                            (img) =>
+                                new Promise((res) => {
+                                    img.onload = img.onerror = res;
+                                    setTimeout(res, 500); // 500ms max per image
+                                })
+                        )
+                    ),
+                    new Promise((res) => setTimeout(res, 1000)) // 1s max overall
+                ]);
             };
 
-            if (document.readyState !== 'complete') {
-                await new Promise((resolve) => window.addEventListener('load', resolve));
+            if (document.readyState === 'loading') {
+                await new Promise((resolve) => {
+                    const handler = () => {
+                        window.removeEventListener('DOMContentLoaded', handler);
+                        resolve();
+                    };
+                    window.addEventListener('DOMContentLoaded', handler);
+                    setTimeout(resolve, 1000); // 1s backup timeout
+                });
             }
             await waitForImagesLoading();
 
@@ -1032,8 +1043,7 @@ export class Player {
         const playerBarCover = document.querySelector('.now-playing-bar .cover');
         if (playerBarCover) await syncCover(playerBarCover);
 
-        const fullscreenCover = document.getElementById('fullscreen-cover-image');
-        if (fullscreenCover) await syncCover(fullscreenCover);
+
     }
 
     async playTrackFromQueue(startTime = 0, recursiveCount = 0, isRetry = false, options = {}) {
@@ -1050,6 +1060,7 @@ export class Player {
         }
 
         const track = currentQueue[this.currentQueueIndex];
+        console.log('[playTrackFromQueue] Track to play:', track);
         if (track.isUnavailable) {
             console.warn(`Attempted to play unavailable track: ${track.title}. Skipping...`);
             await this.playNext();

@@ -10816,6 +10816,9 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     z-index: 12;
 }
 
+#fullscreen-cover-overlay #toggle-fullscreen-lyrics-btn,
+#fullscreen-cover-overlay #toggle-fullscreen-lyrics-mobile-btn,
+#fullscreen-cover-overlay #fs-visualizer-btn,
 #fullscreen-cover-overlay .fullscreen-top-actions button {
     width: 40px;
     height: 40px;
@@ -10831,16 +10834,37 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     transition:
         color 0.2s ease,
         background-color 0.2s ease,
-        opacity 0.2s ease;
+        opacity 0.2s ease,
+        transform 0.2s ease;
 }
 
-#fullscreen-cover-overlay .fullscreen-top-actions #fs-visualizer-btn {
-    order: 3;
+#fullscreen-cover-overlay #toggle-fullscreen-lyrics-btn,
+#fullscreen-cover-overlay #toggle-fullscreen-lyrics-mobile-btn {
+    position: absolute;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    left: calc(1.5rem + env(safe-area-inset-left));
+    top: auto;
+    right: auto;
+    z-index: 100;
 }
 
-#fullscreen-cover-overlay .fullscreen-top-actions #toggle-fullscreen-lyrics-btn,
-#fullscreen-cover-overlay .fullscreen-top-actions #fs-visualizer-btn,
-#fullscreen-cover-overlay .fullscreen-top-actions #close-fullscreen-cover-btn {
+#fullscreen-cover-overlay #fs-visualizer-btn {
+    position: absolute;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    right: calc(1.5rem + env(safe-area-inset-right));
+    top: auto;
+    left: auto;
+    z-index: 100;
+}
+
+#fullscreen-cover-overlay #toggle-fullscreen-lyrics-btn.active,
+#fullscreen-cover-overlay #toggle-fullscreen-lyrics-mobile-btn.active {
+    color: rgb(255 255 255 / 0.96);
+    background: rgb(255 255 255 / 0.12);
+}
+
+#fullscreen-cover-overlay .fullscreen-top-actions #close-fullscreen-cover-btn,
+#fullscreen-cover-overlay .fullscreen-top-actions #toggle-ui-btn {
     position: static;
     top: auto;
     right: auto;
@@ -10850,17 +10874,12 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     opacity: 1;
 }
 
-#fullscreen-cover-overlay .fullscreen-top-actions #toggle-fullscreen-lyrics-btn {
-    order: 2;
-}
-
-#fullscreen-cover-overlay .fullscreen-top-actions #toggle-fullscreen-lyrics-btn.active {
-    color: rgb(255 255 255 / 0.96);
-    background: rgb(255 255 255 / 0.12);
-}
-
 #fullscreen-cover-overlay .fullscreen-top-actions #close-fullscreen-cover-btn {
     order: 1;
+}
+
+#fullscreen-cover-overlay .fullscreen-top-actions #toggle-ui-btn {
+    order: 2;
 }
 
 #fullscreen-cover-overlay.ui-hidden .fullscreen-top-actions {
@@ -10871,23 +10890,29 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 
 #fullscreen-cover-overlay.ui-hidden .fullscreen-top-actions button,
 #fullscreen-cover-overlay.ui-hidden .fullscreen-top-actions #close-fullscreen-cover-btn,
-#fullscreen-cover-overlay.ui-hidden .fullscreen-top-actions #fs-visualizer-btn {
+#fullscreen-cover-overlay.ui-hidden .fullscreen-top-actions #toggle-ui-btn {
     opacity: 1;
     pointer-events: auto;
     transform: none;
 }
 
-#fullscreen-cover-overlay #toggle-ui-btn {
-    top: 1.25rem;
-    left: calc(1.5rem + env(safe-area-inset-left) + (40px * 3) + (0.4rem * 3));
-    right: auto;
-    width: 40px;
-    height: 40px;
-    background: rgb(9 12 18 / 0.34);
-    color: rgb(255 255 255 / 0.72);
-    backdrop-filter: blur(10px);
+/* Idle & UI hidden states for the relocated bottom actions */
+#fullscreen-cover-overlay.ui-hidden #toggle-fullscreen-lyrics-btn,
+#fullscreen-cover-overlay.ui-hidden #toggle-fullscreen-lyrics-mobile-btn,
+#fullscreen-cover-overlay.ui-hidden #fs-visualizer-btn,
+#fullscreen-cover-overlay.controls-idle #toggle-fullscreen-lyrics-btn,
+#fullscreen-cover-overlay.controls-idle #toggle-fullscreen-lyrics-mobile-btn,
+#fullscreen-cover-overlay.controls-idle #fs-visualizer-btn {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: translateY(1rem) !important;
+}
+
+#fullscreen-cover-overlay:not(.controls-idle):not(.ui-hidden) #toggle-fullscreen-lyrics-btn,
+#fullscreen-cover-overlay:not(.controls-idle):not(.ui-hidden) #toggle-fullscreen-lyrics-mobile-btn,
+#fullscreen-cover-overlay:not(.controls-idle):not(.ui-hidden) #fs-visualizer-btn {
     opacity: 1;
-    z-index: 12;
+    transform: translateY(0);
 }
 
 #fullscreen-cover-overlay .fullscreen-controls {
@@ -11217,18 +11242,28 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
         display: none !important;
     }
 
-    #toggle-fullscreen-lyrics-mobile-btn {
-        display: flex;
-    }
-
-    #fullscreen-cover-overlay .fullscreen-top-actions #toggle-fullscreen-lyrics-btn {
+    #fullscreen-cover-overlay #toggle-fullscreen-lyrics-btn {
         display: none !important;
     }
 
-    #fullscreen-cover-overlay .fullscreen-top-actions #fs-visualizer-btn {
+    #fullscreen-cover-overlay #toggle-fullscreen-lyrics-mobile-btn {
         display: flex !important;
-        width: 38px;
-        height: 38px;
+        width: 38px !important;
+        height: 38px !important;
+        bottom: calc(0.9rem + env(safe-area-inset-bottom)) !important;
+        left: calc(0.9rem + env(safe-area-inset-left)) !important;
+        top: auto !important;
+        right: auto !important;
+    }
+
+    #fullscreen-cover-overlay #fs-visualizer-btn {
+        display: flex !important;
+        width: 38px !important;
+        height: 38px !important;
+        bottom: calc(0.9rem + env(safe-area-inset-bottom)) !important;
+        right: calc(0.9rem + env(safe-area-inset-right)) !important;
+        top: auto !important;
+        left: auto !important;
     }
 
     #fullscreen-cover-overlay .fullscreen-main-view {

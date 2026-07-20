@@ -3659,3 +3659,19 @@ export const keyboardShortcuts = {
         return shortcuts[action] || this.DEFAULT_SHORTCUTS[action];
     },
 };
+
+export const youtubeStreamSettings = {
+    STORAGE_KEY: 'youtube-stream-endpoint',
+
+    getEndpointType() {
+        try {
+            return localStorage.getItem(this.STORAGE_KEY) || 'streamfile';
+        } catch {
+            return 'streamfile';
+        }
+    },
+
+    setEndpointType(type) {
+        localStorage.setItem(this.STORAGE_KEY, type);
+    },
+};

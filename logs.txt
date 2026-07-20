@@ -1,0 +1,15 @@
+logs.txt;
+
+
+
+[track click] Clicked track item elements:
+<div class="track-item playing track…inline-like no-duration" data-track-id="yt:cuMuMnCRfqk" data-type="track">
+ Classes: track-item playing track-item--inline-like no-duration events.js:2148:21
+[track click] Retrieved track from store:
+Object { id: "yt:cuMuMnCRfqk", title: "Dracula", duration: 0, artist: {…}, artists: (1) […], album: {…}, audioQuality: "HIGH", allowStreaming: true, streamReady: true, type: "track", … }
+events.js:2186:25
+[track click] Setting queue and playing:
+Object { id: "yt:cuMuMnCRfqk", title: "Dracula", duration: 0, artist: {…}, artists: (1) […], album: {…}, audioQuality: "HIGH", allowStreaming: true, streamReady: true, type: "track", … }
+
+
+dont waste my time check why streamfile endpoint not getting called at all!!

@@ -16,6 +16,7 @@ import {
     devModeSettings,
     amazonMusicSettings,
     deezerFallbackSettings,
+    youtubeStreamSettings,
 } from './storage.js';
 import { APICache } from './cache.js';
 import { DashDownloader } from './dash-downloader.ts';
@@ -43,6 +44,7 @@ import {
 
 export const DASH_MANIFEST_UNAVAILABLE_CODE = 'DASH_MANIFEST_UNAVAILABLE';
 export { resolveDownloadTotalBytes };
+import { authManager, getAuthToken } from './accounts/auth.js';
 let lastAudioSourceMissingNotifyAt = 0;
 const AMAZON_RATE_LIMITED_UNTIL_KEY = 'amazon-music-rate-limited-until';
 const AMAZON_RATE_LIMIT_DURATION_MS = 30 * 60 * 1000;
@@ -237,14 +239,14 @@ export class LosslessAPI {
         }
 
         try {
-            return await tryInstances(await getInstances(false));
+            // return await tryInstances(await getInstances(false));
         } catch (error) {
             if (type === 'streaming' || options.userInstancesOnly) {
                 throw error;
             }
         }
 
-        return await tryInstances(await getInstances(true));
+        // return await tryInstances(await getInstances(true));
     }
 
     findSearchSection(source, key, visited) {
@@ -604,81 +606,182 @@ export class LosslessAPI {
         return Array.from(unique.values());
     }
 
-    async search(query, options = {}) {
-        const cached = await this.cache.get('search_all', query);
-        if (cached) return cached;
+    async searchYoutubeMusic(query, options = {}) {
+        //gemini why si is not used/called anywhere??
+        // const cached = await this.cache.get('search_all', query);
+        // if (cached) return cached;
 
         try {
-            const response = await this.fetchWithRetry(`/search/?q=${encodeURIComponent(query)}`, options);
-            const data = await response.json();
+            console.log('613', 'now searchYoutubeMusic getting called');
+            const baseUrl =
+                window.location.port && window.location.port !== '3000'
+                    ? `${window.location.protocol}//${window.location.hostname}:3000`
+                    : '';
+            const searchUrl = `${baseUrl}/api/search?q=${encodeURIComponent(query)}&filter=songs`;
+            console.log('[search] Fetching YouTube Music search from:', searchUrl);
 
-            const extractSection = (key) => this.normalizeSearchResponse(data, key);
+            const fetchOptions = { signal: options.signal };
+            if (authManager?.user) {
+                fetchOptions.credentials = 'include';
+                const token = getAuthToken();
+                fetchOptions.headers = {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                    'X-User-Email': authManager.user.email || '',
+                    'X-User-Id': authManager.user.id || authManager.user.$id || '',
+                };
+            }
+            const response = await fetch(searchUrl, fetchOptions);
+            if (!response.ok) {
+                throw new Error(`YouTube Music search failed with status ${response.status}`);
+            }
+            const resData = await response.json();
+            console.log('[search] YouTube Music raw response:', resData);
 
-            const tracksData = extractSection('tracks');
-            const artistsData = extractSection('artists');
-            const albumsData = extractSection('albums');
-            const playlistsData = extractSection('playlists');
-            const videosData = extractSection('videos');
+            let resultsArray = null;
+            let resultCount = 0;
 
-            const preparedTracks = tracksData.items.map((t) => this.prepareTrack(t));
-            const preparedArtists = artistsData.items.map((a) => this.prepareArtist(a));
-
-            const [enrichedTracks, enrichedArtists] = await Promise.all([
-                this.enrichTracksWithAlbumCover(preparedTracks),
-                options.enrichArtists === false
-                    ? Promise.resolve(preparedArtists)
-                    : this.enrichArtistsWithPicture(preparedArtists),
-            ]);
-
-            const results = {
-                tracks: {
-                    ...tracksData,
-                    items: enrichedTracks,
-                },
-                artists: {
-                    ...artistsData,
-                    items: enrichedArtists,
-                },
-                albums: {
-                    ...albumsData,
-                    items: albumsData.items.map((a) => this.prepareAlbum(a)),
-                },
-                playlists: playlistsData
-                    ? {
-                          ...playlistsData,
-                          items: playlistsData.items.map((p) => this.preparePlaylist(p)),
-                      }
-                    : { items: [], limit: 0, offset: 0, totalNumberOfItems: 0 },
-                videos: {
-                    ...videosData,
-                    items: videosData.items.map((v) => this.prepareTrack(v)),
-                },
-            };
-
-            await this.cache.set('search_all', query, results);
-
-            return results;
-        } catch (error) {
-            if (import.meta.env.DEV) {
-                console.warn('[search] combined search failed, using HiFi scoped fallback', error);
+            if (resData) {
+                if (resData.data && Array.isArray(resData.data.results)) {
+                    resultsArray = resData.data.results;
+                    resultCount = resData.data.resultCount || resultsArray.length;
+                } else if (Array.isArray(resData.results)) {
+                    resultsArray = resData.results;
+                    resultCount = resData.resultCount || resultsArray.length;
+                } else if (Array.isArray(resData.data)) {
+                    resultsArray = resData.data;
+                    resultCount = resultsArray.length;
+                } else if (Array.isArray(resData)) {
+                    resultsArray = resData;
+                    resultCount = resultsArray.length;
+                }
             }
 
-            // Final fallback: hifi-api-compatible scoped searches (?s, ?a, ?al, ?v, ?p)
-            const [tracks, videos, artists, albums, playlists] = await Promise.all([
-                this.searchTracks(query, options).catch(() => ({ items: [] })),
-                this.searchVideos(query, options).catch(() => ({ items: [] })),
-                this.searchArtists(query, options).catch(() => ({ items: [] })),
-                this.searchAlbums(query, options).catch(() => ({ items: [] })),
-                this.searchPlaylists(query, options).catch(() => ({ items: [] })),
-            ]);
+            if (resultsArray) {
+                const preparedTracks = resultsArray.map((item) => {
+                    const videoId = item.videoId || item.id || item.youtubeId || item.ytId || item.trackId;
+                    const mappedTrack = {
+                        id: 'yt:' + videoId,
+                        title: item.title,
+                        duration: 0,
+                        artist: {
+                            id: item.artist?.browseId || 'unknown',
+                            name: item.artist?.name || 'Unknown Artist',
+                        },
+                        artists: [
+                            {
+                                id: item.artist?.browseId || 'unknown',
+                                name: item.artist?.name || 'Unknown Artist',
+                            },
+                        ],
+                        album: {
+                            id: item.album?.browseId || 'unknown',
+                            title: item.album?.name || 'Unknown Album',
+                            cover: item.thumbnail,
+                        },
+                        audioQuality: 'HIGH',
+                        allowStreaming: true,
+                        streamReady: true,
+                        type: 'track',
+                    };
+                    return this.prepareTrack(mappedTrack);
+                });
 
-            return {
-                tracks,
-                videos,
-                artists,
-                albums,
-                playlists,
-            };
+                console.log('[search] Successfully mapped tracks:', preparedTracks);
+
+                const results = {
+                    tracks: {
+                        items: preparedTracks,
+                        limit: resultCount,
+                        offset: 0,
+                        totalNumberOfItems: resultCount,
+                    },
+                    artists: { items: [] },
+                    albums: { items: [] },
+                    playlists: { items: [] },
+                    videos: { items: [] },
+                };
+
+                await this.cache.set('search_all', query, results);
+                return results;
+            } else {
+                throw new Error('Invalid YouTube Music search response format');
+            }
+        } catch (ytError) {
+            if (ytError.name === 'AbortError') throw ytError;
+            console.warn('[search] YouTube Music search failed, falling back to native search:', ytError);
+
+            try {
+                const response = await this.fetchWithRetry(`/search/?q=${encodeURIComponent(query)}`, options);
+                const data = await response.json();
+
+                const extractSection = (key) => this.normalizeSearchResponse(data, key);
+
+                const tracksData = extractSection('tracks');
+                const artistsData = extractSection('artists');
+                const albumsData = extractSection('albums');
+                const playlistsData = extractSection('playlists');
+                const videosData = extractSection('videos');
+
+                const preparedTracks = tracksData.items.map((t) => this.prepareTrack(t));
+                const preparedArtists = artistsData.items.map((a) => this.prepareArtist(a));
+
+                const [enrichedTracks, enrichedArtists] = await Promise.all([
+                    this.enrichTracksWithAlbumCover(preparedTracks),
+                    options.enrichArtists === false
+                        ? Promise.resolve(preparedArtists)
+                        : this.enrichArtistsWithPicture(preparedArtists),
+                ]);
+
+                const results = {
+                    tracks: {
+                        ...tracksData,
+                        items: enrichedTracks,
+                    },
+                    artists: {
+                        ...artistsData,
+                        items: enrichedArtists,
+                    },
+                    albums: {
+                        ...albumsData,
+                        items: albumsData.items.map((a) => this.prepareAlbum(a)),
+                    },
+                    playlists: playlistsData
+                        ? {
+                              ...playlistsData,
+                              items: playlistsData.items.map((p) => this.preparePlaylist(p)),
+                          }
+                        : { items: [], limit: 0, offset: 0, totalNumberOfItems: 0 },
+                    videos: {
+                        ...videosData,
+                        items: videosData.items.map((v) => this.prepareTrack(v)),
+                    },
+                };
+
+                await this.cache.set('search_all', query, results);
+
+                return results;
+            } catch (error) {
+                if (import.meta.env.DEV) {
+                    console.warn('[search] combined search failed, using HiFi scoped fallback', error);
+                }
+
+                // Final fallback: hifi-api-compatible scoped searches (?s, ?a, ?al, ?v, ?p)
+                const [tracks, videos, artists, albums, playlists] = await Promise.all([
+                    this.searchTracks(query, options).catch(() => ({ items: [] })),
+                    this.searchVideos(query, options).catch(() => ({ items: [] })),
+                    this.searchArtists(query, options).catch(() => ({ items: [] })),
+                    this.searchAlbums(query, options).catch(() => ({ items: [] })),
+                    this.searchPlaylists(query, options).catch(() => ({ items: [] })),
+                ]);
+
+                return {
+                    tracks,
+                    videos,
+                    artists,
+                    albums,
+                    playlists,
+                };
+            }
         }
     }
 
@@ -718,10 +821,7 @@ export class LosslessAPI {
         if (cached) return cached;
 
         try {
-            const response = await this.fetchWithRetry(
-                `/search/?i=${encodeURIComponent(normalizedIsrc)}`,
-                options
-            );
+            const response = await this.fetchWithRetry(`/search/?i=${encodeURIComponent(normalizedIsrc)}`, options);
             const data = await response.json();
             const normalized = this.normalizeSearchResponse(data, 'tracks');
             const preparedTracks = normalized.items.map((t) => this.prepareTrack(t));
@@ -2721,6 +2821,39 @@ export class LosslessAPI {
             }
         }
 
+        if (typeof id === 'string' && (id.startsWith('yt:') || id.startsWith('youtube:'))) {
+            const videoId = id.split(':')[1] || id;
+            if (youtubeStreamSettings.getEndpointType() === 'stream') {
+                try {
+                    const response = await fetch(`https://meq3d-backend-yt-music.onrender.com/api/stream2/${videoId}`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch YouTube stream details: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    if (data && data.success && data.data && data.data.streamUrl) {
+                        const result = {
+                            url: data.data.streamUrl,
+                            provider: 'youtube',
+                        };
+                        this.streamCache.set(cacheKey, result);
+                        return result;
+                    } else {
+                        throw new Error('Failed to parse stream URL from API response');
+                    }
+                } catch (error) {
+                    console.error('[getStreamUrl] Error fetching YouTube stream url:', error);
+                    throw error;
+                }
+            } else {
+                const result = {
+                    url: `https://meq3d-backend-yt-music.onrender.com/api/streamfile2/${videoId}`,
+                    provider: 'youtube',
+                };
+                this.streamCache.set(cacheKey, result);
+                return result;
+            }
+        }
+
         if (devModeSettings.isEnabled()) {
             const lookup = await this.getTrackFromDevMode(id, quality);
             let streamUrl;
@@ -2927,10 +3060,10 @@ export class LosslessAPI {
             const query = `${track.title} ${track.artist?.name || track.artists?.[0]?.name || ''}`.trim();
             const baseUrl = jiosaavnSettings.getApiBaseUrl().replace(/\/+$/, '');
             const searchUrl = `${baseUrl}/api/search/songs?query=${encodeURIComponent(query)}&page=1&limit=5`;
-            
+
             const response = await fetch(searchUrl);
             if (!response.ok) return null;
-            
+
             const data = await response.json();
             if (data?.success && data?.data?.results?.length > 0) {
                 const song = data.data.results[0];
@@ -2938,14 +3071,14 @@ export class LosslessAPI {
                     const qualityOrder = ['320kbps', '160kbps', '96kbps', '48kbps', '12kbps'];
                     let bestUrl = null;
                     for (let q of qualityOrder) {
-                        const urlObj = song.downloadUrl.find(u => u.quality === q);
+                        const urlObj = song.downloadUrl.find((u) => u.quality === q);
                         if (urlObj) {
                             bestUrl = urlObj.url;
                             break;
                         }
                     }
                     if (!bestUrl) bestUrl = song.downloadUrl[song.downloadUrl.length - 1].url;
-                    
+
                     if (bestUrl) {
                         return { url: bestUrl };
                     }

@@ -1351,8 +1351,10 @@ export class UIRenderer {
             if (qualityBtn) qualityBtn.style.display = 'none';
             if (qualityMenu) qualityMenu.style.display = 'none';
 
-            const videoCoverUrl = track.videoUrl || track.videoCoverUrl || track.album?.videoCoverUrl || null;
-            const coverUrl = videoCoverUrl || this.api.getCoverUrl(track.album?.cover, '1280');
+            const songId = typeof track.id === 'string'
+                ? (track.id.includes(':') ? track.id.split(':')[1] : track.id)
+                : '';
+            const coverUrl = `https://i.ytimg.com/vi/${songId}/maxresdefault.jpg`;
 
             const fsLikeBtn = document.getElementById('fs-like-btn');
             if (fsLikeBtn) {
@@ -1361,38 +1363,7 @@ export class UIRenderer {
 
             const currentImage = document.getElementById('fullscreen-cover-image');
 
-            if (videoCoverUrl) {
-                const isPaused = this.player?.activeElement?.paused ?? true;
-                if (currentImage.tagName === 'IMG') {
-                    const video = document.createElement('video');
-                    video.src = videoCoverUrl;
-                    video.autoplay = !isPaused;
-                    video.loop = true;
-                    video.muted = true;
-                    video.playsInline = true;
-                    video.preload = 'auto';
-                    video.className = currentImage.className;
-                    video.id = currentImage.id;
-                    video.style.objectFit = 'cover';
-                    currentImage.replaceWith(video);
-                    if (!isPaused) {
-                        video.play().catch(() => {});
-                    }
-                } else if (currentImage.src !== videoCoverUrl) {
-                    currentImage.src = videoCoverUrl;
-                    if (!isPaused) {
-                        currentImage.play().catch(() => {});
-                    } else {
-                        currentImage.pause();
-                    }
-                } else {
-                    if (!isPaused) {
-                        currentImage.play().catch(() => {});
-                    } else {
-                        currentImage.pause();
-                    }
-                }
-            } else {
+            if (currentImage) {
                 if (currentImage.tagName === 'VIDEO') {
                     const img = document.createElement('img');
                     img.crossOrigin = 'anonymous';

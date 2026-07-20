@@ -1,0 +1,65 @@
+Instructions;
+
+
+this is my dads project i really love the frontend UI he build but he doesnt like TIDAL backend because its unreliable. so I want to completely remove TIDAL backend and replace it with youtube music but keeping it for now. no messing with the UI.
+
+1.) just integrate the YouTube search 'http://localhost:3000/api/search?q=dracula&filter=songs' endpoint which should populate the results in the UI
+
+
+sample api response to make it easy to populate search results
+
+
+{
+  "success": true,
+  "data": {
+    "query": "dracula",
+    "filter": "songs",
+    "resultCount": 20,
+    "results": [
+      {
+        "title": "Dracula",
+        "videoId": "cuMuMnCRfqk",
+        "browseId": null,
+        "thumbnail": "https://yt3.googleusercontent.com/qHqGMmCC4LahCshElRTm8kuJQu4IyDClDx__HiqqydFVMUi2JOfEyZpqootNb1WswJwapw8c8SCmOMuMiQ=w120-h120-l90-rj",
+        "artist": {
+          "name": "Tame Impala",
+          "browseId": "UCGz-eguN8tcic5kUG4s1ZgA"
+        },
+        "album": {
+          "name": "Deadbeat",
+          "browseId": "MPREb_YhRdWFSgBWD"
+        },
+        "category": "Songs"
+      },]}}
+
+
+2. )backend below ignore
+
+
+1.) create endpoint = `/api/streamfile/${song-id-sent-from-client}`
+2.) do `yt-dlp -f "bestaudio[abr<=128]" --extract-audio https://music.youtube.com/watch?v=${song-id-sent-from-client}`
+3.) attach the file.mp3 in response
+
+{"success":true,"data":{"streamFile":`${file.mp3}`,"format":"audio/mp4","bitrate":128,"contentLength":"3325291","durationMs":206000,"expiresIn":14400},"error":null}
+
+
+
+4.) frontend do
+now onclick of song from search result send id to `http://localhost:3000/api/streamfile/${id}` and the response will be a .m4a file to play. currently its not getting called
+
+
+onclick of song from search result i dont see the streamfile api even getting called at all. fix it
+
+
+
+
+logs
+
+[track click] Clicked track item elements:
+<div class="track-item playing track…inline-like no-duration" data-track-id="yt:cuMuMnCRfqk" data-type="track">
+ Classes: track-item playing track-item--inline-like no-duration events.js:2148:21
+[track click] Retrieved track from store:
+Object { id: "yt:cuMuMnCRfqk", title: "Dracula", duration: 0, artist: {…}, artists: (1) […], album: {…}, audioQuality: "HIGH", allowStreaming: true, streamReady: true, type: "track", … }
+events.js:2186:25
+[track click] Setting queue and playing:
+Object { id: "yt:cuMuMnCRfqk", title: "Dracula", duration: 0, artist: {…}, artists: (1) […], album: {…}, audioQuality: "HIGH", allowStreaming: true, streamReady: true, type: "track", … }

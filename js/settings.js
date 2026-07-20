@@ -46,6 +46,7 @@ import {
     fullscreenCoverTiltSpeedSettings,
     devModeSettings,
     serverDisruptionSettings,
+    youtubeStreamSettings,
 } from './storage.js';
 import { audioContextManager, getPresetsForBandCount } from './audio-context.js';
 import { calculateBiquadResponse, interpolate, getNormalizationOffset, runAutoEqAlgorithm } from './autoeq-engine.js';
@@ -1220,6 +1221,14 @@ export async function initializeSettings(scrobbler, player, api, ui) {
         gaplessPlaybackToggle.checked = gaplessPlaybackSettings.isEnabled();
         gaplessPlaybackToggle.addEventListener('change', (e) => {
             gaplessPlaybackSettings.setEnabled(e.target.checked);
+        });
+    }
+
+    const youtubeStreamToggle = document.getElementById('youtube-stream-endpoint-toggle');
+    if (youtubeStreamToggle) {
+        youtubeStreamToggle.checked = youtubeStreamSettings.getEndpointType() === 'stream';
+        youtubeStreamToggle.addEventListener('change', (e) => {
+            youtubeStreamSettings.setEndpointType(e.target.checked ? 'stream' : 'streamfile');
         });
     }
 

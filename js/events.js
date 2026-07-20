@@ -2144,8 +2144,12 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
         }
 
         const trackItem = e.target.closest('.track-item');
-        if (trackItem && trackItem.classList.contains('unavailable')) {
-            return;
+        if (trackItem) {
+            console.log('[track click] Clicked track item elements:', trackItem, 'Classes:', trackItem.className);
+            if (trackItem.classList.contains('unavailable')) {
+                console.warn('[track click] Track item is marked as unavailable, skipping playback.');
+                return;
+            }
         }
         if (isLongPress && longPressTrackItem === trackItem) {
             return;
@@ -2159,7 +2163,7 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
             !e.target.closest('.like-btn')
         ) {
             const clickedTrackId = trackItem.dataset.trackId;
-            const isSearch = window.location.pathname.startsWith('/search/');
+            const isSearch = window.location.pathname.startsWith('/search') || ui.currentPage === 'search';
 
             if (isMultiSelectToggle(e)) {
                 e.preventDefault();
@@ -2178,12 +2182,46 @@ export function initializeTrackInteractions(player, api, mainContent, contextMen
             }
 
             if (isSearch) {
-                const clickedTrack = trackDataStore.get(trackItem);
+                let clickedTrack = trackDataStore.get(trackItem);
+                console.log('[track click] Retrieved track from store:', clickedTrack);
+
+                if (!clickedTrack && clickedTrackId) {
+                    console.warn('[track click] trackDataStore lookup failed. Reconstructing track object from DOM...');
+                    const titleText = trackItem.querySelector('.track-item-info .title')?.textContent?.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim() || 'YouTube Track';
+                    const artistText = trackItem.querySelector('.track-item-info .artist')?.textContent?.trim() || 'Unknown Artist';
+                    
+                    clickedTrack = {
+                        id: clickedTrackId,
+                        title: titleText,
+                        duration: 0,
+                        artist: {
+                            id: 'unknown',
+                            name: artistText
+                        },
+                        artists: [
+                            {
+                                id: 'unknown',
+                                name: artistText
+                            }
+                        ],
+                        album: {
+                            id: 'unknown',
+                            title: 'Unknown Album',
+                            cover: trackItem.querySelector('.track-item-cover')?.getAttribute('src') || ''
+                        },
+                        audioQuality: 'HIGH',
+                        allowStreaming: true,
+                        streamReady: true,
+                        type: 'track'
+                    };
+                }
+
                 if (clickedTrack) {
                     if (trackItem.dataset.type === 'video') {
                         player.playVideo(clickedTrack);
                     } else {
-                        player.setQueue([clickedTrack], 0);
+                        console.log('[track click] Setting queue and playing:', clickedTrack);
+                        await player.setQueue([clickedTrack], 0);
                         document.getElementById('shuffle-btn').classList.remove('active');
                         player.playTrackFromQueue();
 

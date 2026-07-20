@@ -2584,7 +2584,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (query && query === searchInput.value.trim()) {
             performSearch(query);
         }
-    }, 3000);
+    }, 1000);
 
     const handleExternalLink = (query) => {
         const isExternalLink =

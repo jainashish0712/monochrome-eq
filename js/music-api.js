@@ -58,6 +58,7 @@ export class MusicAPI {
         this.jiosaavnAPI = new JioSaavnAPI();
         this._settings = settings;
         this.videoArtworkCache = new Map();
+        this.youtubeMetadataCache = new Map();
     }
 
     static async initialize(settings) {
@@ -84,26 +85,40 @@ export class MusicAPI {
     // Search methods
     async search(query, options = {}) {
         const api = this.getAPI();
-        if (typeof api.search === 'function') {
-            return api.search(query, options);
+        let results;
+        if (typeof api.searchYoutubeMusic === 'function') {
+            results = await api.searchYoutubeMusic(query, options);
+            // } else if (typeof api.search === 'function') {
+            //     results = await api.search(query, options);
+        } else {
+            // Fallback for providers that don't implement unified search
+            const [tracksResult, videosResult, artistsResult, albumsResult, playlistsResult] = await Promise.all([
+                api.searchTracks(query, options),
+                api.searchVideos ? api.searchVideos(query, options) : Promise.resolve({ items: [] }),
+                api.searchArtists(query, options),
+                api.searchAlbums(query, options),
+                api.searchPlaylists ? api.searchPlaylists(query, options) : Promise.resolve({ items: [] }),
+            ]);
+
+            results = {
+                tracks: tracksResult,
+                videos: videosResult,
+                artists: artistsResult,
+                albums: albumsResult,
+                playlists: playlistsResult,
+            };
         }
 
-        // Fallback for providers that don't implement unified search
-        const [tracksResult, videosResult, artistsResult, albumsResult, playlistsResult] = await Promise.all([
-            api.searchTracks(query, options),
-            api.searchVideos ? api.searchVideos(query, options) : Promise.resolve({ items: [] }),
-            api.searchArtists(query, options),
-            api.searchAlbums(query, options),
-            api.searchPlaylists ? api.searchPlaylists(query, options) : Promise.resolve({ items: [] }),
-        ]);
+        // Cache YouTube Music search results
+        if (results && results.tracks && Array.isArray(results.tracks.items)) {
+            results.tracks.items.forEach((track) => {
+                if (track && typeof track.id === 'string' && track.id.startsWith('yt:')) {
+                    this.youtubeMetadataCache.set(track.id, track);
+                }
+            });
+        }
 
-        return {
-            tracks: tracksResult,
-            videos: videosResult,
-            artists: artistsResult,
-            albums: albumsResult,
-            playlists: playlistsResult,
-        };
+        return results;
     }
 
     async searchTracks(query, options = {}) {
@@ -152,12 +167,33 @@ export class MusicAPI {
 
     // Get methods
     async getTrack(id, quality) {
+        if (typeof id === 'string' && (id.startsWith('yt:') || id.startsWith('youtube:'))) {
+            return this.getTrackMetadata(id);
+        }
         const api = this.getAPI();
         const cleanId = this.stripProviderPrefix(id);
         return api.getTrack(cleanId, quality);
     }
 
     async getTrackMetadata(id) {
+        if (typeof id === 'string' && (id.startsWith('yt:') || id.startsWith('youtube:'))) {
+            if (this.youtubeMetadataCache.has(id)) {
+                return this.youtubeMetadataCache.get(id);
+            }
+            const videoId = id.split(':')[1] || id;
+            return new Track({
+                id: id,
+                title: 'YouTube Track',
+                artist: new Artist({ id: 'unknown', name: 'Unknown Artist' }),
+                artists: [new Artist({ id: 'unknown', name: 'Unknown Artist' })],
+                album: { id: 'unknown', title: 'Unknown Album', cover: '' },
+                duration: 0,
+                audioQuality: 'HIGH',
+                allowStreaming: true,
+                streamReady: true,
+                type: 'track',
+            });
+        }
         const api = this.getAPI();
         const cleanId = this.stripProviderPrefix(id);
         return api.getTrackMetadata(cleanId);
@@ -216,6 +252,9 @@ export class MusicAPI {
     }
 
     async getTrackRecommendations(id) {
+        if (typeof id === 'string' && (id.startsWith('yt:') || id.startsWith('youtube:'))) {
+            return [];
+        }
         const api = this.getAPI();
         const cleanId = this.stripProviderPrefix(id);
         if (typeof api.getTrackRecommendations === 'function') {
@@ -226,6 +265,10 @@ export class MusicAPI {
 
     // Stream methods
     async getStreamUrl(id, quality) {
+        console.log('[getStreamUrl] Requested for ID:', id, 'Quality:', quality);
+        if (typeof id === 'string' && (id.startsWith('yt:') || id.startsWith('youtube:'))) {
+            return this.tidalAPI.getStreamUrl(id, quality);
+        }
         const api = this.getAPI();
         const cleanId = this.stripProviderPrefix(id);
         return api.getStreamUrl(cleanId, quality);
@@ -233,15 +276,22 @@ export class MusicAPI {
 
     // Cover/artwork methods
     getCoverUrl(id, size = '320') {
-        if (typeof id === 'string' && (id.startsWith('blob:') || id.startsWith('http'))) {
-            return id;
+        if (typeof id === 'string') {
+            if (id.startsWith('blob:') || id.startsWith('http')) {
+                return id;
+            }
+            if (id.startsWith('yt:') || id.startsWith('youtube:')) {
+                return '';
+            }
         }
         return this.tidalAPI.getCoverUrl(this.stripProviderPrefix(id), size);
     }
 
     getCoverSrcset(id) {
-        if (typeof id === 'string' && (id.startsWith('blob:') || id.startsWith('http'))) {
-            return '';
+        if (typeof id === 'string') {
+            if (id.startsWith('blob:') || id.startsWith('http') || id.startsWith('yt:') || id.startsWith('youtube:')) {
+                return '';
+            }
         }
         return this.tidalAPI.getCoverSrcset(this.stripProviderPrefix(id));
     }
@@ -262,7 +312,7 @@ export class MusicAPI {
             return this.videoArtworkCache.get(cacheKey);
         }
         // artwork.boidu.dev developer asked us to disable his API for the time being due to rate limits.
-        /* 
+        /*
         try {
             const url = `https://artwork.boidu.dev/?s=${encodeURIComponent(title)}&a=${encodeURIComponent(artist)}`;
             const response = await fetch(url);
@@ -274,7 +324,7 @@ export class MusicAPI {
             };
             this.videoArtworkCache.set(cacheKey, result);
             return result;
-        
+
         } catch (error) {
             console.warn('Failed to fetch video artwork:', error);
             return null;
