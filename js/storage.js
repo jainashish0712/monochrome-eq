@@ -3667,7 +3667,7 @@ export const youtubeStreamSettings = {
         try {
             return localStorage.getItem(this.STORAGE_KEY) || 'streamfile';
         } catch {
-            return 'streamfile';
+            return 'streamfile2';
         }
     },
 
