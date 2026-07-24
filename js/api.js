@@ -607,7 +607,6 @@ export class LosslessAPI {
     }
 
     async searchYoutubeMusic(query, options = {}) {
-        //gemini why si is not used/called anywhere??
         // const cached = await this.cache.get('search_all', query);
         // if (cached) return cached;
 
@@ -615,7 +614,8 @@ export class LosslessAPI {
             console.log('613', 'now searchYoutubeMusic getting called');
             const baseUrl =
                 window.location.port && window.location.port !== '3000'
-                    ? `${window.location.protocol}//${window.location.hostname}:3000`
+                    ? `https://meq3d-backend-yt-music.onrender.com`
+                    // ? `${window.location.protocol}//${window.location.hostname}:3000`
                     : '';
             const searchUrl = `${baseUrl}/api/search?q=${encodeURIComponent(query)}&filter=songs`;
             console.log('[search] Fetching YouTube Music search from:', searchUrl);
@@ -630,6 +630,7 @@ export class LosslessAPI {
                     'X-User-Id': authManager.user.id || authManager.user.$id || '',
                 };
             }
+            console.log("633",searchUrl);
             const response = await fetch(searchUrl, fetchOptions);
             if (!response.ok) {
                 throw new Error(`YouTube Music search failed with status ${response.status}`);
@@ -2825,7 +2826,7 @@ export class LosslessAPI {
             const videoId = id.split(':')[1] || id;
             if (youtubeStreamSettings.getEndpointType() === 'stream') {
                 try {
-                    const response = await fetch(`https://meq3d-backend-yt-music.onrender.com/api/stream2/${videoId}`);
+                    const response = await fetch(`https://meq3d-backend-yt-music.onrender.com/api/streamfile2/${videoId}`);
                     if (!response.ok) {
                         throw new Error(`Failed to fetch YouTube stream details: ${response.status}`);
                     }
