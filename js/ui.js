@@ -311,9 +311,8 @@ export class UIRenderer {
 
         const img = new Image();
         img.crossOrigin = 'Anonymous';
-        // Add cache buster to bypass opaque response in cache
-        const separator = url.includes('?') ? '&' : '?';
-        img.src = `${url}${separator}not-from-cache-please`;
+        const isLocal = url.startsWith('blob:') || url.startsWith('data:');
+        img.src = isLocal ? url : `${url}${url.includes('?') ? '&' : '?'}not-from-cache-please`;
 
         img.onload = () => {
             try {
@@ -1354,7 +1353,16 @@ export class UIRenderer {
             const songId = typeof track.id === 'string'
                 ? (track.id.includes(':') ? track.id.split(':')[1] : track.id)
                 : '';
-            const coverUrl = `https://i.ytimg.com/vi/${songId}/maxresdefault.jpg`;
+            const trackCover = track.image || track.cover || track.album?.cover;
+            let coverUrl = trackCover
+                ? this.api.getCoverUrl(trackCover, '1280')
+                : `https://i.ytimg.com/vi/${songId}/maxresdefault.jpg`;
+
+            if (coverUrl && coverUrl.includes('googleusercontent.com')) {
+                coverUrl = coverUrl.includes('=')
+                    ? coverUrl.split('=')[0] + '=w2000-h2000'
+                    : coverUrl + '=w2000-h2000';
+            }
 
             const fsLikeBtn = document.getElementById('fs-like-btn');
             if (fsLikeBtn) {
@@ -1379,6 +1387,7 @@ export class UIRenderer {
             await this.extractAndApplyColor(this.api.getCoverUrl(track.album?.cover, '80'));
         }
 
+        this.updateFullscreenBackgroundAndCoverVisibility(overlay);
         this.updateFullscreenQualityBadgePlacement(track, overlay);
         artist.textContent = getTrackArtists(track);
 
@@ -1479,6 +1488,7 @@ export class UIRenderer {
         this.setupFullscreenSidePanelSync(overlay);
         this.setupFullscreenDismissHandle(overlay);
         this.setupFullscreenLyricsToggle(overlay);
+        this.setupFullscreenBgDragScroll(overlay);
         await this.refreshFullscreenVisualizerState(activeElement);
     }
 
@@ -1505,6 +1515,88 @@ export class UIRenderer {
                 lyricsToggleBtn.style.removeProperty('display');
             }
         });
+    }
+
+    updateFullscreenBackgroundAndCoverVisibility(overlay = document.getElementById('fullscreen-cover-overlay')) {
+        if (!overlay) return;
+        const bgImgEl = document.getElementById('fullscreen-bg-image');
+        const coverImgEl = document.getElementById('fullscreen-cover-image');
+        const isVideoTrack = this.player?.currentTrack?.type === 'video';
+        const isVisualizerActive = overlay.classList.contains('visualizer-active');
+        
+        // Visualizer is disabled if it's not active AND it's not a video track
+        const isVisualizerDisabled = !isVisualizerActive && !isVideoTrack;
+
+        overlay.classList.toggle('visualizer-disabled', isVisualizerDisabled);
+
+        if (bgImgEl) {
+            if (isVisualizerDisabled && coverImgEl && coverImgEl.src && !coverImgEl.src.startsWith('data:')) {
+                bgImgEl.style.backgroundImage = `url('${coverImgEl.src}')`;
+                bgImgEl.classList.add('active');
+
+                // Center the background scroll position
+                const scrollContainer = document.getElementById('fullscreen-bg-scroll-container');
+                if (scrollContainer) {
+                    requestAnimationFrame(() => {
+                        scrollContainer.scrollLeft = (scrollContainer.scrollWidth - scrollContainer.clientWidth) / 2;
+                    });
+                }
+            } else {
+                bgImgEl.classList.remove('active');
+                setTimeout(() => {
+                    if (!bgImgEl.classList.contains('active')) {
+                        bgImgEl.style.backgroundImage = '';
+                    }
+                }, 500);
+            }
+        }
+    }
+
+    setupFullscreenBgDragScroll(overlay) {
+        if (!overlay || this.fullscreenBgDragScrollInitialized) return;
+        this.fullscreenBgDragScrollInitialized = true;
+
+        const container = document.getElementById('fullscreen-bg-scroll-container');
+        if (!container) return;
+
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        const onDown = (e) => {
+            if (e.target.closest('button, a, input, select, textarea, .fullscreen-controls, .fullscreen-track-info, #fs-quality-menu, .fullscreen-lyrics-panel, #fullscreen-dismiss-handle')) {
+                return;
+            }
+            isDown = true;
+            container.classList.add('dragging-bg');
+            const pageX = e.pageX || (e.touches && e.touches[0].pageX);
+            startX = pageX - container.offsetLeft;
+            scrollLeft = container.scrollLeft;
+        };
+
+        const onMove = (e) => {
+            if (!isDown) return;
+            const pageX = e.pageX || (e.touches && e.touches[0].pageX);
+            const x = pageX - container.offsetLeft;
+            const walk = (x - startX) * 1.5; // Scroll speed multiplier
+            container.scrollLeft = scrollLeft - walk;
+        };
+
+        const onUp = () => {
+            isDown = false;
+            container.classList.remove('dragging-bg');
+        };
+
+        // Mouse events
+        overlay.addEventListener('mousedown', onDown);
+        overlay.addEventListener('mousemove', onMove);
+        overlay.addEventListener('mouseup', onUp);
+        overlay.addEventListener('mouseleave', onUp);
+
+        // Touch events for mobile/tablet
+        overlay.addEventListener('touchstart', onDown, { passive: true });
+        overlay.addEventListener('touchmove', onMove, { passive: true });
+        overlay.addEventListener('touchend', onUp);
     }
 
     toggleFullscreenLyrics(overlay = document.getElementById('fullscreen-cover-overlay')) {
@@ -1772,6 +1864,7 @@ export class UIRenderer {
                 toggleBtn.title = 'Hide UI';
                 setFullscreenUIToggleIcon(toggleBtn, false);
             }
+            this.updateFullscreenBackgroundAndCoverVisibility(overlay);
             return;
         }
 
@@ -1789,6 +1882,7 @@ export class UIRenderer {
                 visualizerBtn.title = 'Use Visualizer';
             }
         }
+        this.updateFullscreenBackgroundAndCoverVisibility(overlay);
     }
 
     setupUIToggleButton(overlay) {

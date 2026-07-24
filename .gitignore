@@ -26,3 +26,6 @@ qobuz-api
 Qobuz-DL
 Caddyfile
 dev-dist
+
+
+scratch/*

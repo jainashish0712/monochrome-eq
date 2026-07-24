@@ -1,13 +1,15 @@
 // js/visualizers/kawarp.js
 
 const KAWARP_DEFAULTS = {
-    warpIntensity: 1,
-    blurPasses: 8,
-    animationSpeed: 1,
-    transitionDuration: 1000,
-    saturation: 1.5,
-    dithering: 0.008,
-    scale: 1.25,
+    warpIntensity: 3,
+    blurPasses: 6,
+    animationSpeed: 2,
+    transitionDuration: 3000,
+    saturation: 2,
+    dithering: 0.01,
+    scale: 1.2,
+    brightness: 6
+    // scale: 1.25,
 };
 
 const BEAT_THRESHOLD = 0.75;
@@ -113,11 +115,11 @@ export class KawarpPreset {
     }
 
     _loadCover(url) {
-        // Cache buster forces a fresh CORS request, bypassing the browser's
-        // cached non-CORS response from the <img> tag (same pattern as ui.js)
-        const sep = url.includes('?') ? '&' : '?';
+        console.log("116",url);
+        const isLocal = url.startsWith('blob:') || url.startsWith('data:');
+        const loadUrl = isLocal ? url : `${url}${url.includes('?') ? '&' : '?'}${CACHE_BUST_PARAM}`;
         this.kawarp
-            .loadImage(`${url}${sep}${CACHE_BUST_PARAM}`)
+            .loadImage(loadUrl)
             .catch((err) => console.warn('[Kawarp] Failed to load cover:', err));
     }
 

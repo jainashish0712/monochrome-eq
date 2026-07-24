@@ -4190,6 +4190,64 @@ input:checked + .slider::before {
     height: 100%;
 }
 
+.fullscreen-bg-scroll-container {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    cursor: grab;
+}
+
+.fullscreen-bg-scroll-container.dragging-bg {
+    cursor: grabbing;
+}
+
+.fullscreen-bg-scroll-container::-webkit-scrollbar {
+    display: none;
+}
+
+.fullscreen-bg-image {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 200vw;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    filter: saturate(1.5) brightness(1.1);
+    transform: scale(0.99);
+    opacity: 0;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.fullscreen-bg-image.active {
+    opacity: 1;
+}
+
+#fullscreen-cover-overlay.visualizer-disabled .fullscreen-artwork-card {
+    display: none !important;
+}
+
+#fullscreen-cover-overlay.visualizer-disabled .fullscreen-media-column {
+    align-self: end !important;
+    padding-bottom: 0rem !important;
+}
+
+@media (max-width: 768px) {
+    #fullscreen-cover-overlay.visualizer-disabled .fullscreen-media-column {
+        grid-row: 3 / span 2 !important;
+        align-self: end !important;
+        /* margin-bottom: 8% !important; */
+    }
+}
+
 .fullscreen-cover-content {
     display: flex;
     flex-direction: row;
@@ -10701,6 +10759,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
     gap: 0.95rem;
     justify-self: center;
     transform: none;
+    /* height: 50%; */
     transition:
         width 0.34s cubic-bezier(0.22, 1, 0.36, 1),
         transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
@@ -11094,7 +11153,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 }
 
 #fullscreen-cover-overlay .fullscreen-lyrics-content am-lyrics {
-    --am-lyrics-highlight-color: #f6f4ef;
+    --am-lyrics-highlight-color: #ffffff;
     --lyrics-scroll-padding-top: 18%;
     --lyplus-blur-amount: 0.16em;
     --lyplus-blur-amount-near: 0.085em;
@@ -11115,8 +11174,9 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 
     line-height: 1.32;
     letter-spacing: -0.04em;
-    font-weight: 600;
+    font-weight: 700;
     isolation: isolate;
+    filter: brightness(2.2);
 }
 
 #fullscreen-cover-overlay .fullscreen-lyrics-content::after {
@@ -11347,6 +11407,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
         min-width: 0;
         box-sizing: border-box;
         justify-self: stretch;
+        margin-top: 5%;
     }
 
     #fullscreen-cover-overlay .fullscreen-lyrics-shell {
@@ -11465,6 +11526,9 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
         justify-self: center;
         border-radius: 14px;
         box-shadow: 0 24px 56px rgb(0 0 0 / 0.28);
+    margin-bottom: 10%;
+    filter: brightness(1.2) saturate(1.3);
+
     }
 
     #fullscreen-cover-overlay.lyrics-hidden #fullscreen-cover-image {
@@ -11478,11 +11542,12 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
         gap: 0.3rem;
         margin-top: 0.9rem;
         text-align: center;
+        margin-bottom: 5%;
     }
 
     #fullscreen-cover-overlay.lyrics-hidden .fullscreen-track-text {
         gap: 0.2rem;
-        justify-items: center;
+        justify-items: baseline;
     }
 
     #fullscreen-cover-overlay.lyrics-hidden #fullscreen-track-title {
@@ -11502,6 +11567,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
         justify-self: center;
         align-self: end;
         margin-top: 0;
+        margin:0 0 10% 0%;
     }
 
     #fullscreen-cover-overlay.lyrics-hidden #fullscreen-track-title .quality-badge,
@@ -11519,7 +11585,7 @@ body:has(#side-panel.active) #close-fullscreen-cover-btn {
 
     #fullscreen-cover-overlay.lyrics-hidden .fullscreen-mobile-quality .quality-badge,
     #fullscreen-cover-overlay.lyrics-hidden .fullscreen-mobile-quality .shaka-quality-badge {
-        display: inline-flex !important;
+        display: none;
     }
 
     #fullscreen-cover-overlay .fullscreen-volume-container {
